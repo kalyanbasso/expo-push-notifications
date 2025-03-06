@@ -4,14 +4,17 @@ type NotificationData = {
   [key: string]: any;
 };
 
-async function buildMessages(
-  tokens: string[],
-  title: string,
-  message: string,
-  data: NotificationData
-) {
-  let messagesList = [];
-  for (let pushToken of tokens) {
+export type TSendPushNotification = {
+  tokens: string[];
+  title: string;
+  message: string;
+  data: NotificationData;
+};
+
+async function generatePushMessages(params: TSendPushNotification) {
+  const { tokens, title, message, data } = params;
+  const messagesList = [];
+  for (const pushToken of tokens) {
     if (!Expo.isExpoPushToken(pushToken)) {
       console.error(`Push token ${pushToken} is not a valid Expo push token`);
       continue;
@@ -29,11 +32,11 @@ async function buildMessages(
   return messagesList;
 }
 
-async function createChunks(chunks: ExpoPushMessage[][], expo: Expo) {
-  let tickets: ExpoPushTicket[] = [];
-  for (let chunk of chunks) {
+async function sendPushChunks(expo: Expo, chunks: ExpoPushMessage[][]) {
+  const tickets: ExpoPushTicket[] = [];
+  for (const chunk of chunks) {
     try {
-      let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+      const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
       tickets.push(...ticketChunk);
     } catch (error) {
       console.error(error);
@@ -43,11 +46,11 @@ async function createChunks(chunks: ExpoPushMessage[][], expo: Expo) {
   return tickets;
 }
 
-async function handleReceipt(receiptIdChunks: string[][], expo: Expo) {
-  for (let chunk of receiptIdChunks) {
+async function processReceipts(expo: Expo, receiptIdChunks: string[][]) {
+  for (const chunk of receiptIdChunks) {
     try {
-      let receipts = await expo.getPushNotificationReceiptsAsync(chunk);
-      for (let receiptId in receipts) {
+      const receipts = await expo.getPushNotificationReceiptsAsync(chunk);
+      for (const receiptId in receipts) {
         const { status } = receipts[receiptId];
         if (status === "ok") {
           continue;
@@ -62,31 +65,32 @@ async function handleReceipt(receiptIdChunks: string[][], expo: Expo) {
         }
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching push notification receipts:", error);
     }
   }
 }
 
-export async function sendPushNotification(
-  tokens: string[],
-  title: string,
-  message: string,
-  data: NotificationData
+export async function sendPushNotificationService(
+  params: TSendPushNotification
 ) {
   const expo = new Expo();
 
-  const messagesList = await buildMessages(tokens, title, message, data);
+  const messages = await generatePushMessages(params);
+  if (messages.length === 0) {
+    return;
+  }
 
-  const chunks = expo.chunkPushNotifications(messagesList);
-  const tickets = await createChunks(chunks, expo);
+  const chunks = expo.chunkPushNotifications(messages);
+  const tickets = await sendPushChunks(expo, chunks);
 
-  let receiptIds = [];
-  for (let ticket of tickets) {
-    if (ticket.status === "ok") {
-      receiptIds.push(ticket.id);
-    }
+  const receiptIds = tickets
+    .filter((ticket) => ticket.status === "ok")
+    .map((ticket) => ticket.id);
+
+  if (receiptIds.length === 0) {
+    return;
   }
 
   const receiptIdChunks = expo.chunkPushNotificationReceiptIds(receiptIds);
-  await handleReceipt(receiptIdChunks, expo);
+  await processReceipts(expo, receiptIdChunks);
 }

@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+message PushNotification {
+  string title = 1;
+  string message = 2;
+  map<string, string> data = 3;
+}
+
+message PushNotificationTokens {
+  string expo_token = 1;
+}
+
+message UpsertTenantPushNotificationTokenRequest {
+  string tenant_id = 1;
+  PushNotificationTokens push_notification_tokens = 2;
+}
+
+message UpsertTenantPushNotificationTokenResponse {}
+
+message SendTenantPushNotificationsRequest {
+  string tenant_id = 1;
+  PushNotification push_notification = 2;
+}
+
+message SendTenantPushNotificationsResponse {}
+
+service PushNotificationService {
+  rpc UpsertTenantPushNotificationToken (UpsertTenantPushNotificationTokenRequest) 
+    returns (UpsertTenantPushNotificationTokenResponse);
+  rpc SendTenantPushNotification (SendTenantPushNotificationsRequest) 
+    returns (SendTenantPushNotificationsResponse);
+}
