@@ -20,3 +20,14 @@ This project demonstrates how to implement push notifications using Expo.
 ## Description
 
 This project provides a simple example of how to set up and use push notifications in an Expo application. It includes all necessary configurations and code to get you started quickly.
+
+## Run build proto
+
+```sh
+./node_modules/.bin/grpc_tools_node_protoc \
+  --plugin=protoc-gen-ts_proto=./node_modules/.bin/protoc-gen-ts_proto \
+  --ts_proto_out=./src/compiled_proto \
+  --ts_proto_opt=outputServices=nice-grpc,outputServices=generic-definitions,useExactTypes=false \
+  --proto_path=./src/proto \
+  ./src/proto/notification.proto
+```
